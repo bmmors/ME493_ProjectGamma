@@ -31,26 +31,22 @@ public:
 	vector<int> order;
 
 	void init(int n_city);
-	void calc_distance();
+	void mutate();
+	void calc_distance(vector<city> cc);
 };
 
 class Agent {
+public:
 	double ax_start;
 	double ay_start;
 	double ax; //does the agent start at a city or at a random location?
 	double ay;
 
-	void init();
+	void init(double city_x, double city_y);
+	void restart();
 };
 
 
-class Evolutionary_Alorithm {
-public:
-	void EA_init();
-	void EA_replicate();
-	void EA_evaluate();
-	void EA_downselect();
-};
 
 void city::init() {
 	cx = BMMRAND;
@@ -85,7 +81,7 @@ void policy::init(int n_city) {
 	assert(order.size() == n_city);
 
 	///Cout order for Dubgging
-	/*cout << "Order:";
+	/* << "Order:";
 	for (int i=0; i < n_city; i++)
 	{
 		cout << order[i] << "\t";
@@ -94,11 +90,85 @@ void policy::init(int n_city) {
 	*/
 }
 
+void policy::mutate() {
+	int num_swap = 2;
+	int rand1 = 0;
+	int rand2 = 0;
+	for (int i = 0; i < num_swap; i++) {
+		rand1 = rand() % order.size();
+		rand2 = rand() % order.size();
+		//The first city always has to be 0
+		while (rand1 == 0) { rand1 = rand() % order.size(); }
+		while (rand2 == 0) { rand2 = rand() % order.size(); }
+		//swap around the other cities
+		swap(order[rand1], order[rand2]);
+	}
+	assert(order[0] == 0);
+}
+
+void policy::calc_distance(vector<city> cc) {
+	//fitness = total distance to travel through all the cities
+	assert(cc.size() == order.size());
+	fitness = 0;
+	for (int i = 0; i < cc.size() - 1; i++) {
+		fitness = fitness + sqrt(pow(cc[order[i + 1]].cx - cc[order[i]].cx,2)  + pow(cc[order[i + 1]].cy - cc[order[i]].cy,2));
+	}
+	//cout << "Fitness:" << fitness << endl;
+}
+
+void Agent::init(double city_x, double city_y) {
+	ax_start = city_x;
+	ay_start = city_y;
+	///cout <<"city:" << city_x << "," << city_y << endl;
+	///cout <<"agent:"<< ax_start << "," << ay_start << endl;
+}
+
+void Agent::restart() {
+	ax = ax_start; //might be unnecessary...re-evaluate later
+	ay = ay_start;
+}
+
+vector<policy> EA_replicate(vector<policy> pp,int num_poly,int n_city) {
+	policy temp;
+	int spot = 0;
+
+	while (pp.size() < num_poly) {
+		spot = rand() % pp.size();
+		temp = pp.at(spot);
+		temp.mutate();
+		///Cout original and mutated policies for debugging
+		/*cout << "Original:";
+		for (int i = 0; i < n_city; i++) {
+			cout << "\t" << pp[spot].order[i];
+		}
+		cout << endl;
+
+		cout << "Mutate:";
+		for (int i = 0; i < n_city; i++) {
+			cout << "\t" << temp.order[i];
+		}
+		cout << endl;
+		*/
+
+		pp.push_back(temp);
+	}
+	assert(pp.size() == num_poly);
+	return pp;
+}
+
+vector<policy> EA_evaluate(vector<policy> pp) {
+	return pp;
+}
+
+vector<policy> EA_downselect(vector<policy> pp) {
+	return pp;
+}
+
 int main() {
 	srand(time(NULL));
 
 	//Define how many cities to travel too
-	int num_city = 5;
+	int num_city = 10; //10 cities, 25 cities, 50
 	vector<city> cities;
 
 	//Create Cities
@@ -109,18 +179,33 @@ int main() {
 	}
 	assert(cities.size() == num_city);
 
+	//initialize agent at city 0 location
+	Agent A;
+	A.init(cities[0].cx, cities[0].cy);
+	//double check agent is initialized properly
+	///cout << "city2:" << cities[0].cx << "," << cities[0].cy << endl;
+	assert(A.ax_start == cities[0].cx); 
+	assert(A.ay_start == cities[0].cy);
+
 	//Define number of policies
-	int num_poly = 50;
+	int num_poly = 1;
 	vector<policy> policies;
 
 	//Create 50 Random Policies 
 	for (int i = 0; i < num_poly; i++) {
 		policy P;
 		P.init(num_city);
+		P.calc_distance(cities);
 		policies.push_back(P);
 	}
-	assert(policies.size() == num_poly);
-
-
+	assert(policies.size() == num_poly); // make sure the correct amount of policies were created
+	
+	//Implement Evolutionary Algorithm
+	int run = 1; //how many times to run EA
+	int total_poly = num_poly * 2; //double the number of original policies
+	for (int i = 0; i < run; i++) {
+		policies = EA_replicate(policies, total_poly,num_city);
+	}
+	assert(policies.size() == total_poly); //double check policy size is double original policy size
 	return 0;
 }
