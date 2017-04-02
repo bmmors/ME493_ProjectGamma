@@ -156,12 +156,27 @@ vector<policy> EA_replicate(vector<policy> pp,int num_poly,int n_city) {
 	return pp;
 }
 
-vector<policy> EA_evaluate(vector<policy> pp) {
+vector<policy> EA_evaluate(vector<policy> pp,vector<city> cc) {
+	//fitness = total distance to travel through all the cities
+	for (int j = 0; j < pp.size(); j++) {
+		pp.at(j).calc_distance(cc);
+	}
 	return pp;
 }
 
-vector<policy> EA_downselect(vector<policy> pp) {
-	return pp;
+vector<policy> EA_downselect(vector<policy> pp,int size) {
+	vector<policy> winners;
+	int spot1 = 0;
+	int spot2 = 0;
+	while (winners.size() < size) {
+		spot1 = rand() % size;
+		spot2 = rand() % size;
+		while (spot1 == spot2) { spot1 = rand() % size;}
+		if (pp[spot1].fitness > pp[spot2].fitness) { winners.push_back(pp[spot1]); }
+		else if (pp[spot2].fitness > pp[spot2].fitness) { winners.push_back(pp[spot2]); }
+	}
+	assert(winners.size() == size);
+	return winners;
 }
 
 int main() {
@@ -205,6 +220,9 @@ int main() {
 	int total_poly = num_poly * 2; //double the number of original policies
 	for (int i = 0; i < run; i++) {
 		policies = EA_replicate(policies, total_poly,num_city);
+		policies = EA_evaluate(policies, cities);
+		policies = EA_downselect(policies, num_poly);
+		assert(policies.size() == num_poly);
 	}
 	assert(policies.size() == total_poly); //double check policy size is double original policy size
 	return 0;
