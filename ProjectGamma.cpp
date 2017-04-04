@@ -38,12 +38,13 @@ public:
 void city::init() {
 	cx = BMMRAND;
 	cx = cx * 100; //city x location in a 100x100 grid
-	///cout << cx << ", ";
+	cout << cx << ", ";
 	cy = BMMRAND;
 	cy = cy * 100; //city y location in a 100x100 grid
-	///cout << cy << endl;
+	cout << cy << endl;
 
-				   //make sure there are no cities out of bounds
+	
+	//make sure there are no cities out of bounds
 	assert(cx <= 100);
 	assert(cy <= 100);
 }
@@ -111,13 +112,13 @@ void policy::calc_distance(vector<city> cc) {
 		temp = sqrt(pow(cc[order[i + 1]].cx - cc[order[i]].cx,2)  + pow(cc[order[i + 1]].cy - cc[order[i]].cy,2));
 		fitness += temp;
 	}
-	///cout << "Fitness:" << fitness << endl;
+	assert(fitness != 0);
+	//cout << "Fitness:" << fitness << endl;
 }
 
 vector<policy> EA_replicate(vector<policy> pp,int num_poly,int n_city) {
 	policy temp;
 	int spot = 0;
-
 	while (pp.size() < num_poly) {
 		spot = rand() % pp.size();
 		temp = pp.at(spot);
@@ -139,23 +140,41 @@ vector<policy> EA_replicate(vector<policy> pp,int num_poly,int n_city) {
 
 		pp.push_back(temp);
 	}
+
+	//check each city is only visited once
+	int duplicate;
+	int t;
+	for (int i = 0; i < num_poly; i++){
+		duplicate = 0;
+		t = pp[i].order[0];
+		for (int j = 1; j < n_city; j++) {
+			if (t == pp[i].order[j]) {
+				duplicate++;
+			}
+		}
+	}
+	assert(duplicate == 0);
 	assert(pp.size() == num_poly);
 	return pp;
 }
 
 vector<policy> EA_evaluate(vector<policy> pp,vector<city> cc) {
 	//fitness = total distance to travel through all the cities
+	vector<policy> tp;
+	assert(tp.size() == 0);
+
 	for (int j = 0; j < pp.size(); j++) {
-		pp.at(j).calc_distance(cc);
+		tp.push_back(pp[j]);
+		tp[j].calc_distance(cc);
 	}
 	return pp;
 }
 
-vector<policy> EA_downselect(vector<policy> pp,int size) {
+vector<policy> EA_downselect(vector<policy> pp,int size, vector<city> cc) {
 	vector<policy> winners;
 	int spot1 = 0;
 	int spot2 = 0;
-	///int counter = 0;
+	int counter = 0;
 	///cout << "size=" << size << endl;
 	while (winners.size() < size) {
 		spot1 = rand() % size;
@@ -164,18 +183,28 @@ vector<policy> EA_downselect(vector<policy> pp,int size) {
 		///cout << "spot2before=" << spot2 << endl;
 		while (spot1 == spot2) { spot1 = rand() % size;}
 		///cout << "spot1 " << spot1 << "\t spot2 " << spot2 << endl;
-		if (pp[spot1].fitness <= pp[spot2].fitness) { 
+		if (pp[spot1].fitness < pp[spot2].fitness) { 
 			winners.push_back(pp[spot1]); 
 			///cout << "Spot 1 wins\tFit1=" << pp[spot1].fitness << "\tFit2=" << pp[spot2].fitness << endl;
 		}
-		else if (pp[spot2].fitness <= pp[spot1].fitness) { 
+		else if (pp[spot2].fitness < pp[spot1].fitness) { 
 			winners.push_back(pp[spot2]); 
 			///cout << "Spot 2 wins\tFit1=" << pp[spot1].fitness << "\tFit2=" << pp[spot2].fitness << endl;
 		}
-		else {
+		else if (pp[spot1].fitness == pp[spot2].fitness){
+			pp[spot1].mutate();
+			pp[spot1].calc_distance(cc);
+			if (pp[spot1].fitness < pp[spot2].fitness) {
+				winners.push_back(pp[spot1]);
+				///cout << "Spot 1 wins\tFit1=" << pp[spot1].fitness << "\tFit2=" << pp[spot2].fitness << endl;
+			}
+			else if (pp[spot2].fitness < pp[spot1].fitness) {
+				winners.push_back(pp[spot2]);
+				///cout << "Spot 2 wins\tFit1=" << pp[spot1].fitness << "\tFit2=" << pp[spot2].fitness << endl;
+			}
 			///cout << "no win" << "\tFit1=" << pp[spot1].fitness << "\tFit2=" << pp[spot2].fitness << endl; //this is where the problem is. The program is not finding a winner
 		}
-		///counter++;
+		counter++;
 	}
 	///cout << "counter:" << counter << endl;
 	assert(winners.size() == size);
@@ -229,7 +258,7 @@ int main() {
 		//EA
 		policies = EA_replicate(policies, total_poly,num_city);
 		policies = EA_evaluate(policies, cities);
-		policies = EA_downselect(policies, num_poly);
+		policies = EA_downselect(policies, num_poly,cities);
 		assert(policies.size() == num_poly);
 		//save min distance each run for learning curve
 		double test = policies[0].fitness;
@@ -254,6 +283,24 @@ int main() {
 		myfile << minfit[i] << endl;
 	}
 	myfile.close();
+
+	ofstream cfile;
+	cfile.open("cities.csv");
+	for (int i = 0; i < num_city; i++) {
+		cfile << cities[i].cx << "," << cities[i].cy << endl;
+	}
+	cfile.close();
+
+	ofstream pfile;
+	pfile.open("policies.csv");
+	pfile << "Order, , , , , , , , , ,fitness" << endl;
+	for (int k = 0; k < num_poly; k++) {
+		for (int j = 0; j < num_city; j++) {
+			pfile << policies[k].order[j] << ",";
+		}
+		pfile << policies[k].fitness << endl;
+	}
+	pfile.close();
 	assert(policies.size() == num_poly); //double check policy size
 	return 0;
 }
