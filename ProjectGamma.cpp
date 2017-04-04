@@ -35,19 +35,6 @@ public:
 	void calc_distance(vector<city> cc);
 };
 
-class Agent {
-public:
-	double ax_start;
-	double ay_start;
-	double ax; //does the agent start at a city or at a random location?
-	double ay;
-
-	void init(double city_x, double city_y);
-	void restart();
-};
-
-
-
 void city::init() {
 	cx = BMMRAND;
 	cx = cx * 100; //city x location in a 100x100 grid
@@ -94,41 +81,8 @@ void policy::init(int n_city) {
 	*/
 }
 
-/*
-void policy::init(int n_city) {
-	//Create order from 0 to n_city
-	for (int i = 0; i < n_city; i++) {
-		order.push_back(i);
-	}
-	assert(order.size() == n_city);
-	//swap vector instances to get random order n_city number of times without duplicating cities
-	int rand1=0;
-	int rand2 = 0;
-	for (int i = 0; i < n_city; i++) {
-		rand1 = rand() % n_city;
-		rand2 = rand() % n_city;
-		//The first city always has to be 0
-		while (rand1 == 0){ rand1 = rand() % n_city; }
-		while (rand2 == 0) { rand2 = rand() % n_city; }
-		//swap around the other cities
-		swap(order[rand1], order[rand2]);
-	}
-	assert(order[0] == 0);
-	assert(order.size() == n_city);
-
-	///Cout order for Dubgging
-	/* << "Order:";
-	for (int i=0; i < n_city; i++)
-	{
-		cout << order[i] << "\t";
-	}
-	cout << endl;
-	/
-}
-*/
-
 void policy::mutate() {
-	int num_swap = 5;
+	int num_swap = 1+ (rand()%4); //swap between 1-5 times 
 	int rand1 = 0;
 	int rand2 = 0;
 	int temporary = 0;
@@ -150,39 +104,22 @@ void policy::mutate() {
 
 void policy::calc_distance(vector<city> cc) {
 	//fitness = total distance to travel through all the cities
-	double dummy = 0;
+	double temp = 0;
 	assert(cc.size() == order.size());
 	fitness = 0;
 	for (int i = 0; i < cc.size() - 1; i++) {
-		///printf("1: %d, %d\n2: %d, %d", cc[order[i]].cx, cc[order[i]].cy, cc[order[i + 1]].cx, cc[order[i + 1]].cy);
-		dummy = sqrt(pow(cc[order[i + 1]].cx - cc[order[i]].cx,2)  + pow(cc[order[i + 1]].cy - cc[order[i]].cy,2));
-		///cout << '\t' << dummy << endl;
-		fitness += dummy;
+		temp = sqrt(pow(cc[order[i + 1]].cx - cc[order[i]].cx,2)  + pow(cc[order[i + 1]].cy - cc[order[i]].cy,2));
+		fitness += temp;
 	}
 	///cout << "Fitness:" << fitness << endl;
-}
-
-void Agent::init(double city_x, double city_y) {
-	ax_start = city_x;
-	ay_start = city_y;
-	///cout <<"city:" << city_x << "," << city_y << endl;
-	///cout <<"agent:"<< ax_start << "," << ay_start << endl;
-}
-
-void Agent::restart() {
-	ax = ax_start; //might be unnecessary...re-evaluate later
-	ay = ay_start;
 }
 
 vector<policy> EA_replicate(vector<policy> pp,int num_poly,int n_city) {
 	policy temp;
 	int spot = 0;
-	int n = pp.size();
-
-	//cout << n << endl;
 
 	while (pp.size() < num_poly) {
-		spot = rand() % n;
+		spot = rand() % pp.size();
 		temp = pp.at(spot);
 		temp.mutate();
 		///Cout original and mutated policies for debugging
@@ -261,14 +198,6 @@ int main() {
 	}
 	assert(cities.size() == num_city);
 
-	//initialize agent at city 0 location
-	Agent A;
-	A.init(cities[0].cx, cities[0].cy);
-	//double check agent is initialized properly
-	///cout << "city2:" << cities[0].cx << "," << cities[0].cy << endl;
-	assert(A.ax_start == cities[0].cx); 
-	assert(A.ay_start == cities[0].cy);
-
 	//Define number of policies
 	int num_poly = 50;
 	vector<policy> policies;
@@ -280,46 +209,51 @@ int main() {
 		P.calc_distance(cities);
 		policies.push_back(P);
 	}
+	assert(policies.size() == num_poly); // make sure the correct amount of policies were created
 
-	for (int i = 0; i < num_poly; i++) {
+	/*for (int i = 0; i < num_poly; i++) {
 		for (int j = 0; j < num_city; j++) {
 			cout << policies[i].order[j] << ", ";
 		}
 		cout << "\n";
 	}
-	assert(policies.size() == num_poly); // make sure the correct amount of policies were created
-	
+	*/
+
 	//Implement Evolutionary Algorithm
-	int run = 300; //how many times to run EA
+
+	int gen = 300; //how many times to run EA
 	int total_poly = num_poly * 2; //double the number of original policies
-	//cout << "total_poly=" << total_poly << endl;
-	for (int i = 0; i < run; i++) {
+	vector<double> minfit;
+	
+	for (int i = 0; i < gen; i++) {
+		//EA
 		policies = EA_replicate(policies, total_poly,num_city);
 		policies = EA_evaluate(policies, cities);
 		policies = EA_downselect(policies, num_poly);
 		assert(policies.size() == num_poly);
+		//save min distance each run for learning curve
+		double test = policies[0].fitness;
+		for (int k = 1; k < num_poly; k++) {
+			if (test > policies[k].fitness) {
+				test = policies[k].fitness;
+			}
+		}
+		minfit.push_back(test);
 	}
-
-	/*for (int k = 0; k < num_poly; k++) {
+	assert(minfit.size() == gen);
+	for (int k = 0; k < num_poly; k++) {
 		for (int j = 0; j < num_city; j++) {
 			cout << policies[k].order[j] << ", ";
 		}
 		cout << "fitness=" << policies[k].fitness << "\n";
-	}*/
+	}
 	
 	ofstream myfile;
-	myfile.open("cities.csv");
-	for (int i = 0; i < cities.size(); i++) {
-		myfile << cities[i].cx << "," << cities[i].cy << "," << endl;
+	myfile.open("minfit10.csv");
+	for (int i = 0; i < gen; i++) {
+		myfile << minfit[i] << endl;
 	}
 	myfile.close();
-
-	ofstream newfile;
-	newfile.open("path.csv");
-	for (int i = 0; i < num_city; i++) {
-		newfile << policies[1].order[i] << endl;
-	}
-	newfile.close();
 	assert(policies.size() == num_poly); //double check policy size
 	return 0;
 }
