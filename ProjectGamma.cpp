@@ -83,10 +83,19 @@ void policy::init(int n_city) {
 }
 
 void policy::mutate() {
-	int num_swap = 1+ (rand()%4); //swap between 1-5 times 
+	int num_swap = 1;//swap between 1-5 times 
 	int rand1 = 0;
 	int rand2 = 0;
 	int temporary = 0;
+
+	////This section was added 4/10/17 for LR_4
+	vector<int> shuffle;
+	vector<int> temporder;
+	for (int t = 0; t < order.size(); t++) {
+		temporder.push_back(order[t]);
+	}
+	////end section
+
 	for (int i = 0; i < num_swap; i++) {
 		rand1 = rand() % order.size();
 		rand2 = rand() % order.size();
@@ -99,8 +108,29 @@ void policy::mutate() {
 		order[rand1] = order[rand2];
 		order[rand2] = temporary;
 		///cout << "\t" << order[rand1] << ", " << order[rand2] << endl;
+
+		////This section was added 4/10/17 for LR_6
+		for (int j = 0; j < order.size(); j++) {
+			for (int k = 0; k < order.size(); k++) {
+				if (j != k) { //does not check against itself
+					assert(order[j] != order[k]); //assert each value is not a duplicate
+				}
+			}
+		}
+		////end section
 	}
-	assert(order[0] == 0);
+	////This section was added 4/10/17 for LR_4
+	int mutation = 0;
+	assert(temporder.size() == order.size());
+	for (int n = 0; n < order.size(); n++) {
+		if (temporder[n] != order[n]) {
+			mutation++;
+		}
+	}
+	assert(mutation != 0);
+	////end section
+
+	assert(order[0] == 0); 
 }
 
 void policy::calc_distance(vector<city> cc) {
@@ -167,7 +197,7 @@ vector<policy> EA_evaluate(vector<policy> pp,vector<city> cc) {
 		tp.push_back(pp[j]);
 		tp[j].calc_distance(cc);
 	}
-	return pp;
+	return tp;
 }
 
 vector<policy> EA_downselect(vector<policy> pp,int size, vector<city> cc) {
